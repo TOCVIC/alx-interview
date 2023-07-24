@@ -1,35 +1,58 @@
 #!/usr/bin/python3
-"""log parsing"""
-import sys
+"""Reads from standard input and computes metrics.
+
+After every ten lines or the input of a keyboard interruption (CTRL + C),
+prints the following statistics:
+    - Total file size up to that point.
+    - Count of read status codes up to that point.
+"""
 
 
-def print_data(total_file_size, status_code_data):
-    """prints total size and status code count"""
-    print('File size: {}'.format(total_file_size))
-    for k, v in sorted(status_code_data.items()):
-        if v != 0:
-            print('{}: {}'.format(k, v))
+def print_stats(size, status_codes):
+    """Print accumulated metrics.
 
+    Args:
+        size (int): The accumulated read file size.
+        status_codes (dict): The accumulated count of status codes.
+    """
+    print("File size: {}".format(size))
+    for key in sorted(status_codes):
+        print("{}: {}".format(key, status_codes[key]))
 
-status_codes = ['200', '301', '400', '401', '403', '404', '405', '500']
-status_code_data = {code: 0 for code in status_codes}
-total_file_size = 0
-try:
+if __name__ == "__main__":
+    import sys
+
+    size = 0
+    status_codes = {}
+    valid_codes = ['200', '301', '400', '401', '403', '404', '405', '500']
     count = 0
-    for line in sys.stdin:
-        splitstr = line.split()
-        try:
-            total_file_size += int(splitstr[-1])
-            code = splitstr[-2]
-            if code in status_code_data:
+
+    try:
+        for line in sys.stdin:
+            if count == 10:
+                print_stats(size, status_codes)
+                count = 1
+            else:
                 count += 1
-                status_code_data[code] += 1
-                if count % 10 == 0:
-                    print_data(total_file_size, status_code_data)
-        except:
-            pass
-except KeyboardInterrupt:
-    print_data(total_file_size, status_code_data)
-    raise
-else:
-    print_data(total_file_size, status_code_data)
+
+            line = line.split()
+
+            try:
+                size += int(line[-1])
+            except (IndexError, ValueError):
+                pass
+
+            try:
+                if line[-2] in valid_codes:
+                    if status_codes.get(line[-2], -1) == -1:
+                        status_codes[line[-2]] = 1
+                    else:
+                        status_codes[line[-2]] += 1
+            except IndexError:
+                pass
+
+        print_stats(size, status_codes)
+
+    except KeyboardInterrupt:
+        print_stats(size, status_codes)
+        raise
